@@ -6,6 +6,7 @@
 # Next.js build output
 /frontend/.next
 /frontend/out
+/frontend/src/logs
 
 # Environment variables
 /frontend/.env

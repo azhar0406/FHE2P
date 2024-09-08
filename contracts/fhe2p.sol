@@ -13,7 +13,7 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
 
    struct Voucher {
         euint256 encryptedCode;
-        uint32 price;
+        uint256 price;
         ebool isRevealed;
         eaddress owner;
         eaddress seller;
@@ -25,7 +25,7 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
 
     struct VoucherMetaData {
         uint256 voucherId;
-        uint32 price;
+        uint256 price;
         uint32 expiryDate;
         string imageUrl;
         string description;
@@ -51,7 +51,7 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
 
    function listVoucher(
         bytes memory _encryptedCode, 
-        uint32 _price, 
+        uint256 _price, 
         bytes memory _pin, 
         uint32 _expiryDate, 
         string memory _imageUrl,
@@ -114,11 +114,10 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
         emit VoucherPurchased(_voucherId, msg.sender);
     }
 
-    function revealVoucher(uint256 _voucherId, bytes32 _publicKey, bytes memory _pin) external whenNotPaused returns (string memory) {
+    function revealVoucher(uint256 _voucherId) external whenNotPaused {
         Voucher storage voucher = vouchers[_voucherId];
         FHE.req(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)));
         FHE.req(FHE.eq(voucher.isRevealed, FHE.asEbool(false)));
-        FHE.req(FHE.eq(voucher.pin, FHE.asEuint64(_pin)));
         
         // Check if the voucher has expired
         ebool hasExpired = FHE.lt(FHE.asEuint32(voucher.expiryDate), FHE.asEuint32(block.timestamp));
@@ -128,9 +127,23 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
         voucher.isRevealed = FHE.asEbool(true);
         emit VoucherRevealed(_voucherId);
 
-        // Seal the voucher code using the provided public key
-        return FHE.sealoutput(voucher.encryptedCode, _publicKey);
     }
+
+
+    function revealVoucherView(uint256 _voucherId) public view whenNotPaused returns (euint256) {
+        Voucher storage voucher = vouchers[_voucherId];
+        FHE.req(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)));
+        FHE.req(FHE.eq(voucher.isRevealed, FHE.asEbool(true)));
+        
+        // Check if the voucher has expired
+        ebool hasExpired = FHE.lt(FHE.asEuint32(voucher.expiryDate), FHE.asEuint32(block.timestamp));
+        ebool isNotExpired = FHE.or(FHE.eq(FHE.asEuint32(voucher.expiryDate), FHE.asEuint32(0)), FHE.not(hasExpired));
+        FHE.req(isNotExpired);
+
+        // Seal the voucher code using the provided public key
+        return voucher.encryptedCode;
+    }
+
 
       function resellVoucher(
         uint256 _voucherId, 
@@ -205,6 +218,38 @@ function getAllVouchersMetadata() external view returns (VoucherMetaData[] memor
         }
 
         return allMetadata;
+    }
+
+    function getMyVouchers() external view returns (VoucherMetaData[] memory) {
+        uint256 ownedCount = 0;
+
+        // First, count the number of vouchers owned by the caller
+        for (uint256 i = 1; i <= voucherCount; i++) {
+            Voucher storage voucher = vouchers[i];
+            if (FHE.decrypt(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)))) {
+                ownedCount++;
+            }
+        }
+
+        VoucherMetaData[] memory myVouchers = new VoucherMetaData[](ownedCount);
+        uint256 index = 0;
+
+        // Then, populate the metadata array
+        for (uint256 i = 1; i <= voucherCount; i++) {
+            Voucher storage voucher = vouchers[i];
+            if (FHE.decrypt(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)))) {
+                myVouchers[index] = VoucherMetaData({
+                    voucherId: i,
+                    price: voucher.price,
+                    expiryDate: voucher.expiryDate,
+                    imageUrl: voucher.imageUrl,
+                    description: voucher.description
+                });
+                index++;
+            }
+        }
+
+        return myVouchers;
     }
 
     function setPlatformFee(uint32 _newFee) external onlyOwner {
