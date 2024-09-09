@@ -1,5 +1,8 @@
 # FHE2P (Fully Homomorphic Encryption 2-Party)
 
+![Copy_of_Colorful_Cool_and_Modern_3D_Gradient_What_is_Design_Education_Presentation](https://github.com/user-attachments/assets/10dce784-d695-493d-aed7-e511b88985a9)
+
+
 ## Overview
 
 FHE2P is a decentralized marketplace project that demonstrates the use of Fully Homomorphic Encryption (FHE) in a two-party system via the Fhenix protocol. It enables secure trading of encrypted vouchers, such as prepaid Visa cards, using stablecoins. FHE2P addresses challenges in P2P transactions, including government restrictions and the risks posed by centralized exchanges. Voucher data is stored securely on the Fhenix Chain, allowing users to redeem or resell their vouchers in a Web2 marketplace, creating a seamless and hybrid P2P experience.
