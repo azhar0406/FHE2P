@@ -114,7 +114,7 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
         emit VoucherPurchased(_voucherId, msg.sender);
     }
 
-    function revealVoucher(uint256 _voucherId) external whenNotPaused {
+    function revealVoucher(uint256 _voucherId, bytes32 _publicKey) external whenNotPaused returns (string memory) {
         Voucher storage voucher = vouchers[_voucherId];
         FHE.req(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)));
         FHE.req(FHE.eq(voucher.isRevealed, FHE.asEbool(false)));
@@ -127,10 +127,15 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
         voucher.isRevealed = FHE.asEbool(true);
         emit VoucherRevealed(_voucherId);
 
+        // Seal the voucher code using the provided public key
+        return FHE.sealoutput(voucher.encryptedCode, _publicKey);
     }
 
+     function converttoeuint256(uint256 _val,bytes32 pubkey) public pure returns(string memory reencrypted){
+        return FHE.sealoutput(FHE.asEuint256(_val),pubkey);
+    }
 
-    function revealVoucherView(uint256 _voucherId) public view whenNotPaused returns (euint256) {
+    function revealVoucherView(uint256 _voucherId, bytes32  _publicKey) public view whenNotPaused returns (string memory reencrypted) {
         Voucher storage voucher = vouchers[_voucherId];
         FHE.req(FHE.eq(voucher.owner, FHE.asEaddress(msg.sender)));
         FHE.req(FHE.eq(voucher.isRevealed, FHE.asEbool(true)));
@@ -139,11 +144,8 @@ contract FHE2P is Ownable, Pausable, ReentrancyGuard {
         ebool hasExpired = FHE.lt(FHE.asEuint32(voucher.expiryDate), FHE.asEuint32(block.timestamp));
         ebool isNotExpired = FHE.or(FHE.eq(FHE.asEuint32(voucher.expiryDate), FHE.asEuint32(0)), FHE.not(hasExpired));
         FHE.req(isNotExpired);
-
-        // Seal the voucher code using the provided public key
-        return voucher.encryptedCode;
+        return FHE.sealoutput(voucher.encryptedCode, _publicKey);
     }
-
 
       function resellVoucher(
         uint256 _voucherId, 
@@ -222,7 +224,6 @@ function getAllVouchersMetadata() external view returns (VoucherMetaData[] memor
 
     function getMyVouchers() external view returns (VoucherMetaData[] memory) {
         uint256 ownedCount = 0;
-
         // First, count the number of vouchers owned by the caller
         for (uint256 i = 1; i <= voucherCount; i++) {
             Voucher storage voucher = vouchers[i];
@@ -230,10 +231,8 @@ function getAllVouchersMetadata() external view returns (VoucherMetaData[] memor
                 ownedCount++;
             }
         }
-
         VoucherMetaData[] memory myVouchers = new VoucherMetaData[](ownedCount);
         uint256 index = 0;
-
         // Then, populate the metadata array
         for (uint256 i = 1; i <= voucherCount; i++) {
             Voucher storage voucher = vouchers[i];
@@ -248,7 +247,6 @@ function getAllVouchersMetadata() external view returns (VoucherMetaData[] memor
                 index++;
             }
         }
-
         return myVouchers;
     }
 
